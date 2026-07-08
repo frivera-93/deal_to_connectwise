@@ -86,6 +86,20 @@
       return (params.get("selectedIds") || "").split(",")[0] || null;
     }
 
+    async function showSnackbarSafe(message) {
+      // Snackbar is cosmetic only - never let it affect the real success/failure state
+      try {
+        if (sdk) {
+          await sdk.execute("SHOW_SNACKBAR", {
+            message,
+            duration: 3000
+          });
+        }
+      } catch (snackbarError) {
+        console.warn("Snackbar failed (non-critical):", snackbarError);
+      }
+    }
+
     async function init() {
       try {
         if (!window.AppExtensionsSDK) {
@@ -152,26 +166,17 @@
           throw new Error(`HTTP ${response.status}`);
         }
 
+        // Success - set this BEFORE the snackbar call so a snackbar hiccup can't overwrite it
         statusEl.textContent = "Pushed to ConnectWise successfully.";
         buttonText.textContent = "Push to ConnectWise";
 
-        if (sdk) {
-          await sdk.execute("showSnackbar", {
-            message: "Deal pushed to ConnectWise successfully",
-            duration: 3000
-          });
-        }
+        await showSnackbarSafe("Deal pushed to ConnectWise successfully");
       } catch (error) {
         console.error("Error pushing to ConnectWise:", error);
         statusEl.textContent = "Failed to push to ConnectWise.";
         buttonText.textContent = "Push to ConnectWise";
 
-        if (sdk) {
-          await sdk.execute("showSnackbar", {
-            message: error.message || "Something went wrong",
-            duration: 3000
-          });
-        }
+        await showSnackbarSafe(error.message || "Something went wrong");
       } finally {
         pushButton.disabled = false;
         const spinner = pushButton.querySelector(".spinner");
